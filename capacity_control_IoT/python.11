@@ -1,0 +1,48 @@
+import serial
+import datetime
+import urllib3
+import time
+
+# === Serial Port ===
+arduino = serial.Serial(port='COM3', baudrate=9600, timeout=1)
+
+# === ThingSpeak ===
+API_KEY = 'YESZAJ1MOAF0GHKH'
+BASE_URL = 'https://api.thingspeak.com/update?api_key='
+
+http = urllib3.PoolManager()
+
+print("Occupancy Monitoring Started...")
+
+while True:
+    try:
+        data = arduino.readline().decode('utf-8').strip()
+
+        if data.startswith("COUNT:"):
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            parts = data.split(",")
+            count = parts[0].split(":")[1]
+            tilt  = parts[1].split(":")[1]
+            rgb   = parts[2].split(":")[1]
+
+            print(f"[{timestamp}] COUNT: {count} | TILT: {tilt} | RGB: {rgb}")
+
+            ts_url = (
+                f"{BASE_URL}{API_KEY}"
+                f"&field1={count}"
+                f"&field2={tilt}"
+                f"&field3={rgb}"
+            )
+
+            response = http.request('GET', ts_url)
+            print(f"ThingSpeak Response: {response.status}")
+
+            time.sleep(15)  # ThingSpeak rate limit
+
+    except KeyboardInterrupt:
+        print("\nProgram stopped by user.")
+        break
+
+    except Exception as e:
+        print("Error:", e)
